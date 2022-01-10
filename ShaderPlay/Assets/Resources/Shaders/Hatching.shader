@@ -4,7 +4,8 @@
     {
         _Color ("Color Tint", Color) = (1, 1, 1, 1)
         _TileFactor ("Tile Factor", Float) = 1
-        _Offset("Offset",Range(0,1)) = 0
+        _Intensity("Intensity",Range(0,1)) = 1
+        _Rotate ("Hatch UV Rotate",Range(0,360)) = 0
 
 		_OutlineColor ("Outline Color", Color) = (1,1,1,1)
         _Outline("Thick of Outline",Range(0,0.1)) = 0.02
@@ -18,7 +19,6 @@
         _Hatch4 ("Hatch 4", 2D) = "white" { }
         _Hatch5 ("Hatch 5", 2D) = "white" { }
 
-        _Rotate ("Hatch UV Rotate",Range(0,360)) = 0
     }
 
     SubShader
@@ -86,7 +86,7 @@
 
             fixed4 _Color;
             float _TileFactor;
-            float _Offset;
+            float _Intensity;
 
             sampler2D _Hatch0;
             sampler2D _Hatch1;
@@ -94,6 +94,8 @@
             sampler2D _Hatch3;
             sampler2D _Hatch4;
             sampler2D _Hatch5;
+
+            float _Rotate;
 
             struct a2v
             {
@@ -112,6 +114,8 @@
                 float3 worldPos: TEXCOORD3;
                 SHADOW_COORDS(4)
             };
+            
+
 
             v2f vert(a2v v)
             {
@@ -122,7 +126,7 @@
                 fixed3 worldLightDir = normalize(WorldSpaceLightDir(v.vertex));
                 fixed3 worldNormal = UnityObjectToWorldNormal(v.normal);
 
-                fixed diff = max(0, dot(worldLightDir, worldNormal)) * (1 - _Offset) + _Offset;
+                fixed diff = max(0, dot(worldLightDir, worldNormal)) *_Intensity + (1 - _Intensity);
                 
                 o.hatchWeights0 = fixed3(0, 0, 0);
                 o.hatchWeights1 = fixed3(0, 0, 0);
@@ -171,6 +175,10 @@
 
             fixed4 frag(v2f i): SV_TARGET
             {
+                _Rotate = _Rotate * (UNITY_PI / 180);
+                half2x2 Rot = half2x2(cos(_Rotate),-sin(_Rotate) ,sin(_Rotate),cos(_Rotate));
+                i.uv = mul(Rot,i.uv);
+
                 fixed4 hatchTex0 = tex2D(_Hatch0, i.uv) * i.hatchWeights0.x;
                 fixed4 hatchTex1 = tex2D(_Hatch1, i.uv) * i.hatchWeights0.y;
                 fixed4 hatchTex2 = tex2D(_Hatch2, i.uv) * i.hatchWeights0.z;
