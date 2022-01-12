@@ -27,7 +27,11 @@
 
 		Pass
         {
+            Tags { "LightMode" = "Always"}
+            
             Cull Front
+            Lighting Off
+
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -72,7 +76,7 @@
 
         Pass
         {
-            Tags { "LightMode" = "ForwardBase" }
+            Tags { "LightMode" = "ForwardBase"  "RenderType" = "Opaque" "Queue" = "Geometry"}
 
             CGPROGRAM
 
@@ -81,8 +85,6 @@
 
             #include "UnityCG.cginc"
             #include "Lighting.cginc"
-            #include "AutoLight.cginc"
-            #include "UnityShaderVariables.cginc"
 
             fixed4 _Color;
             float _TileFactor;
@@ -112,9 +114,7 @@
                 fixed3 hatchWeights0: TEXCOORD1;
                 fixed3 hatchWeights1: TEXCOORD2;
                 float3 worldPos: TEXCOORD3;
-                SHADOW_COORDS(4)
             };
-            
 
 
             v2f vert(a2v v)
@@ -168,8 +168,6 @@
 
                 o.worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
 
-                TRANSFER_SHADOW(o);
-
                 return o;
             }
 
@@ -191,9 +189,7 @@
 
                 fixed4 hatchColor = hatchTex0 + hatchTex1 + hatchTex2 + hatchTex3 + hatchTex4 + hatchTex5 + whiteColor;
 
-                UNITY_LIGHT_ATTENUATION(atten, i, i.worldPos);
-
-                return fixed4(hatchColor.rgb * _Color.rgb * atten, 1);
+                return fixed4(hatchColor.rgb * _Color.rgb, 1);
             }
 
             ENDCG
