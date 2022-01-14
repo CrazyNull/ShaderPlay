@@ -30,7 +30,6 @@
             Tags { "LightMode" = "Always"}
             
             Cull Front
-            Lighting Off
 
             CGPROGRAM
             #pragma vertex vert
@@ -128,6 +127,7 @@
 
                 fixed diff = max(0, dot(worldLightDir, worldNormal)) *_Intensity + (1 - _Intensity);
                 
+
                 o.hatchWeights0 = fixed3(0, 0, 0);
                 o.hatchWeights1 = fixed3(0, 0, 0);
 
@@ -196,5 +196,6 @@
 
         }
     }
+    
     FallBack "Diffuse"
 }

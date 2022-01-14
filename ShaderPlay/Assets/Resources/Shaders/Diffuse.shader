@@ -1,4 +1,4 @@
-Shader "Custom/forward_Diffuse"
+Shader "Custom/Diffuse"
 {
     Properties
     {
@@ -12,6 +12,7 @@ Shader "Custom/forward_Diffuse"
         CGINCLUDE
 
         #include "UnityCG.cginc"
+        #include "Lighting.cginc"
 
         struct appdata
         {
@@ -46,7 +47,7 @@ Shader "Custom/forward_Diffuse"
             float3 worldLightDir = normalize(i.worldLightDir);
                 
             fixed diff = max(0,dot(worldNormal,worldLightDir)) * 0.5 + 0.5;
-            fixed4 col = _DiffuseColor * diff;
+            fixed4 col = _DiffuseColor * diff * _LightColor0;
             return col;
         }
         ENDCG

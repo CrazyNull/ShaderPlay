@@ -1,4 +1,4 @@
-Shader "Custom/Deferred_Diffuse"
+Shader "Custom/Deferred"
 {
     Properties
     {
@@ -68,7 +68,7 @@ Shader "Custom/Deferred_Diffuse"
 			#if !defined(UNITY_HDR_ON)
 				color.rgb = exp2(-color.rgb);
 			#endif
-			o.gBuf3 = float4(color,1);
+			    o.gBuf3 = float4(0,0,0,1);
 			return o;
         }
         ENDCG
