@@ -1,3 +1,4 @@
+
 Shader "Custom/Matcap"
 {
     Properties
@@ -13,16 +14,15 @@ Shader "Custom/Matcap"
 
         Pass
         {
+            Tags { "LightMode" = "Always"}
+
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            // make fog work
             #pragma multi_compile_fog
             #pragma multi_compile _SCOPE_WORLD _SCOPE_CAMERA _SCOPE_LIGHT
 
-            #include "Lighting.cginc"
             #include "UnityCG.cginc"
-            #include "AutoLight.cginc"
 
             struct appdata
             {
@@ -44,26 +44,30 @@ Shader "Custom/Matcap"
 
             sampler2D _CapTex;
             float _CapRotate;
-
-
+            
+            #if _SCOPE_LIGHT
+                uniform float4x4 _MainDirLightWorldToLocalMatrix;
+            #endif
+            
             v2f vert (appdata v)
             {
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 
+                float3 n = (0,0,0);
                 #if _SCOPE_WORLD
-                    float3 n = UnityObjectToWorldNormal(v.normal);
+                    n = UnityObjectToWorldNormal(v.normal);
                 #endif
 
                 #if _SCOPE_CAMERA
-                    float3 n = mul(UNITY_MATRIX_MV,v.normal);
+                    n = mul(UNITY_MATRIX_MV,v.normal);
                 #endif
 
                 #if _SCOPE_LIGHT
-                    float3 n = mul(unity_WorldToLight,UnityObjectToWorldNormal(v.normal));
+                    n = mul(_MainDirLightWorldToLocalMatrix,UnityObjectToWorldNormal(v.normal));
                 #endif
-                
+
                 o.cap = n.xy * 0.5 + 0.5;
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
