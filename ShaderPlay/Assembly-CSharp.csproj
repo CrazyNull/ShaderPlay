@@ -60,6 +60,7 @@
     <None Include="Assets\Resources\Shaders\Rim.shader" />
     <None Include="Assets\Resources\Shaders\Diffuse.shader" />
     <None Include="Assets\Resources\Shaders\Deferred.shader" />
+    <None Include="Assets\Resources\Shaders\GroundGlass.shader" />
     <None Include="Assets\Resources\Shaders\Matcap.shader" />
   </ItemGroup>
   <ItemGroup>
