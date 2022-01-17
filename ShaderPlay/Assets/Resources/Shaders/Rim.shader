@@ -10,12 +10,17 @@
     {
         Tags {"Queue" = "Transparent"  "RenderType"="Transparent" }
         LOD 100
+        
+        Pass 
+        {
+            ZWrite On
+            ColorMask 0
+        }
 
         Pass
         {
             Blend SrcAlpha One
             ZWrite Off
-            Lighting Off
 
             CGPROGRAM
             #pragma vertex vert

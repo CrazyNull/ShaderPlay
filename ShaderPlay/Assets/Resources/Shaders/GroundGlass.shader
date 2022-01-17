@@ -4,7 +4,7 @@ Shader "Custom/GroundGlass"
     {
         _Color ("Color", Color) = (1,1,1,1)
         _DumpTex ("Dump Texture",2D) = "white" {}
-        _DumpScale ("Dump Scale",Range(0,2)) = 1.0
+        _DumpScale ("Dump Scale",Range(0,20)) = 1.0
     }
     SubShader
     {
@@ -74,7 +74,6 @@ Shader "Custom/GroundGlass"
             {
                 float2 dumpuv = float2(i.uv.x * _DumpTex_ST.x + _DumpTex_ST.z , i.uv.y * _DumpTex_ST.y + _DumpTex_ST.w);
                 float3 tangentNormal = UnpackNormal(tex2D(_DumpTex, dumpuv));
-                
                 tangentNormal.xy *= _DumpScale;
                 tangentNormal.z = sqrt(1.0 - saturate(dot(tangentNormal.xy, tangentNormal.xy)));
 
