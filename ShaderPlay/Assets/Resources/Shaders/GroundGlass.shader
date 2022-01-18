@@ -4,7 +4,8 @@ Shader "Custom/GroundGlass"
     {
         _Color ("Color", Color) = (1,1,1,1)
         _DumpTex ("Dump Texture",2D) = "white" {}
-        _DumpScale ("Dump Scale",Range(0,20)) = 1.0
+        _DumpScale ("Dump Scale",Range(0,10)) = 0
+        _RefractRatio("Refract Ratio",Range(0,1)) = 0
     }
     SubShader
     {
@@ -42,9 +43,12 @@ Shader "Custom/GroundGlass"
                 float4 vertex : SV_POSITION;
                 float4 grabPos : TEXCOORD2;
 
-                float3	TtoV0 : TEXCOORD3;
-				float3	TtoV1 : TEXCOORD4;
-				float3	TtoV2 : TEXCOORD5;
+                float3	TtoW0 : TEXCOORD3;
+				float3	TtoW1 : TEXCOORD4;
+				float3	TtoW2 : TEXCOORD5;
+
+                float3 worldNormal : TEXCOORD6;
+                float3 worldViewDir : TEXCOORD7;
             };
 
             fixed4 _Color;
@@ -55,6 +59,7 @@ Shader "Custom/GroundGlass"
             sampler2D _DumpTex;
             float4 _DumpTex_ST;
 
+            float _RefractRatio;
             float _DumpScale;
 
             v2f vert (appdata v)
@@ -66,10 +71,13 @@ Shader "Custom/GroundGlass"
 
                 TANGENT_SPACE_ROTATION;
 
-                o.TtoV0 = normalize(mul(rotation, unity_WorldToObject[0].xyz));
-				o.TtoV1 = normalize(mul(rotation, unity_WorldToObject[1].xyz));
-				o.TtoV2 = normalize(mul(rotation, unity_WorldToObject[2].xyz));
+                o.TtoW0 = normalize(mul(rotation, unity_WorldToObject[0].xyz));
+				o.TtoW1 = normalize(mul(rotation, unity_WorldToObject[1].xyz));
+				o.TtoW2 = normalize(mul(rotation, unity_WorldToObject[2].xyz));
 
+                o.worldNormal = mul(unity_ObjectToWorld,v.normal);
+                float3 worldPos = mul(unity_ObjectToWorld,v.vertex);
+                o.worldViewDir = UnityWorldSpaceViewDir(worldPos);
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
             }
@@ -78,12 +86,16 @@ Shader "Custom/GroundGlass"
             {
                 float2 dumpuv = float2(i.uv.x * _DumpTex_ST.x + _DumpTex_ST.z , i.uv.y * _DumpTex_ST.y + _DumpTex_ST.w);
                 float3 tangentNormal = UnpackNormal(tex2D(_DumpTex, dumpuv));
-                tangentNormal.xy *= _DumpScale;
-                tangentNormal.z = sqrt(1.0 - saturate(dot(tangentNormal.xy, tangentNormal.xy)));
+                float3x3 TtoVMatrix = float3x3(i.TtoW0.xyz,i.TtoW1.xyz,i.TtoW2.xyz);
+                
+                float3 worldNormal = mul(TtoVMatrix,tangentNormal) * _DumpScale + i.worldNormal;
+                worldNormal = normalize(worldNormal);
 
-                float3x3 TtoVMatrix = float3x3(i.TtoV0.xyz,i.TtoV1.xyz,i.TtoV2.xyz);
-                float3 viewNormal = mul(TtoVMatrix,tangentNormal);
-                i.grabPos.xyz += viewNormal.yxz;
+                float3 worldRefr = refract(-normalize(i.worldViewDir), normalize(worldNormal),_RefractRatio);
+                worldRefr = normalize(worldRefr);
+
+                i.grabPos.xyz += worldRefr.xyz;
+
                 fixed4 grabcol = tex2Dproj(_BackgroundTexture,i.grabPos);
 
                 fixed4 col = _Color * grabcol;
