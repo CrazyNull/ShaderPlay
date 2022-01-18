@@ -17,6 +17,9 @@ Shader "Custom/GroundGlass"
         {
             Tags { "LightMode" = "ForwardBase"}
 
+            //Blend SrcAlpha OneMinusSrcAlpha
+            //ZWrite Off
+
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -62,9 +65,10 @@ Shader "Custom/GroundGlass"
                 o.grabPos = ComputeGrabScreenPos(o.vertex);
 
                 TANGENT_SPACE_ROTATION;
-                o.TtoV0 = normalize(mul(rotation, UNITY_MATRIX_IT_MV[0].xyz));
-				o.TtoV1 = normalize(mul(rotation, UNITY_MATRIX_IT_MV[1].xyz));
-				o.TtoV2 = normalize(mul(rotation, UNITY_MATRIX_IT_MV[2].xyz));
+
+                o.TtoV0 = normalize(mul(rotation, unity_WorldToObject[0].xyz));
+				o.TtoV1 = normalize(mul(rotation, unity_WorldToObject[1].xyz));
+				o.TtoV2 = normalize(mul(rotation, unity_WorldToObject[2].xyz));
 
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
@@ -79,8 +83,8 @@ Shader "Custom/GroundGlass"
 
                 float3x3 TtoVMatrix = float3x3(i.TtoV0.xyz,i.TtoV1.xyz,i.TtoV2.xyz);
                 float3 viewNormal = mul(TtoVMatrix,tangentNormal);
-
-                fixed4 grabcol = tex2Dproj(_BackgroundTexture,i.grabPos + float4(viewNormal,0));
+                i.grabPos.xyz += viewNormal.yxz;
+                fixed4 grabcol = tex2Dproj(_BackgroundTexture,i.grabPos);
 
                 fixed4 col = _Color * grabcol;
                 UNITY_APPLY_FOG(i.fogCoord, col);
