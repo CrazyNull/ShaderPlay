@@ -86,9 +86,9 @@ Shader "Custom/GroundGlass"
             {
                 float2 dumpuv = float2(i.uv.x * _DumpTex_ST.x + _DumpTex_ST.z , i.uv.y * _DumpTex_ST.y + _DumpTex_ST.w);
                 float3 tangentNormal = UnpackNormal(tex2D(_DumpTex, dumpuv));
-                float3x3 TtoVMatrix = float3x3(i.TtoW0.xyz,i.TtoW1.xyz,i.TtoW2.xyz);
+                float3x3 TtoWMatrix = float3x3(i.TtoW0.xyz,i.TtoW1.xyz,i.TtoW2.xyz);
                 
-                float3 worldNormal = mul(TtoVMatrix,tangentNormal) * _DumpScale + i.worldNormal;
+                float3 worldNormal = mul(TtoWMatrix,tangentNormal) * _DumpScale + i.worldNormal;
                 worldNormal = normalize(worldNormal);
 
                 float3 worldRefr = refract(-normalize(i.worldViewDir), normalize(worldNormal),_RefractRatio);
