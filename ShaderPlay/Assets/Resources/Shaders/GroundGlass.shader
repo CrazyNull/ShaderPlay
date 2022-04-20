@@ -85,7 +85,7 @@ Shader "Custom/GroundGlass"
                 float3x3 TtoVMatrix = float3x3(i.TtoV0.xyz,i.TtoV1.xyz,i.TtoV2.xyz);
                 
                 float3 viewNormal = mul(TtoVMatrix,tangentNormal);
-                viewNormal = viewNormal * _DumpScale ;
+                viewNormal = viewNormal * _DumpScale;
 
                 i.grabPos.xyz += viewNormal.xyz;
 

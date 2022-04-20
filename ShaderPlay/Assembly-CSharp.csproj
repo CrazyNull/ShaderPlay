@@ -64,7 +64,9 @@
     <None Include="Assets\Resources\Shaders\Diffuse.shader" />
     <None Include="Assets\Resources\Shaders\Deferred.shader" />
     <None Include="Assets\Resources\Shaders\GroundGlass.shader" />
+    <None Include="Assets\Resources\Shaders\PBR.shader" />
     <None Include="Assets\Resources\Shaders\Matcap.shader" />
+    <None Include="Assets\Resources\Shaders\LowPoly_Diffuse.shader" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">
