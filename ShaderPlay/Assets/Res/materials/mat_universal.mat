@@ -7,9 +7,9 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: mat_pbr
-  m_Shader: {fileID: 4800000, guid: 9df14e6ccaa9181409d4b4cf61766343, type: 3}
-  m_ShaderKeywords: _NORMALDISTMODEL_PHONG
+  m_Name: mat_universal
+  m_Shader: {fileID: 4800000, guid: c912884bec656cd439a40c36678775c4, type: 3}
+  m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -57,37 +57,28 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Anisotropic: 0
     - _BumpScale: 1
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
-    - _ENABLE_D: 0
-    - _ENABLE_F: 0
-    - _ENABLE_G: 0
-    - _ENABLE_NDF: 0
-    - _FresnelModel: 0
-    - _GeoShadowModel: 0
     - _GlossMapScale: 1
-    - _Glossiness: 0.423
+    - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _Ior: 2.23
-    - _Metallic: 0.269
+    - _Metallic: 0.391
+    - _Metallics: 0.5
     - _Mode: 0
-    - _NormalDistModel: 1
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _SmithGeoShadowModel: 0
+    - _Smoothness: 0.187
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
-    - _SpecularPower: 0.521
-    - _SpecularRange: 7.8
+    - _SpecularPower: 1
     - _SrcBlend: 1
     - _UVSec: 0
-    - _UnityLightingContribution: 0.23
     - _ZWrite: 1
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _DiffuseCol: {r: 0.8301887, g: 0.8301887, b: 0.8301887, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
-    - _SpecularColor: {r: 1, g: 1, b: 1, a: 1}
+    - _SpecularCol: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
