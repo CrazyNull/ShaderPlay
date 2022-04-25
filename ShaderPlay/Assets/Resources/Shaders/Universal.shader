@@ -4,6 +4,7 @@ Shader "Custom/Universal"
     {
         _MainTex ("Texture", 2D) = "white" {}
         _DiffuseCol ("Diffuse Color", Color) = (1,1,1,1)
+        _NormalTex ("Normal", 2D) = "white" {}
 	    _SpecularCol ("Specular Color", Color) = (0,0,0,0)
         _Metallic ("Metallic",Range(0,1)) = 0.5
 	    _Smoothness ("Smoothness",Range(0,1)) = 0.5
@@ -56,6 +57,9 @@ Shader "Custom/Universal"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+
+            sampler2D _NormalTex;
+            float4 _NormalTex_ST;
  
             fixed4 _DiffuseCol;
             fixed3 _SpecularCol;
@@ -63,9 +67,26 @@ Shader "Custom/Universal"
             fixed _Metallic;
             float _Ior;
 
+
             float MixFunction(float i, float j, float x) 
             {
-                return j * x + i * (1.0 - x);
+	            return j * x + i * (1.0 - x);
+            } 
+            float2 MixFunction(float2 i, float2 j, float x)
+            {
+	            return j * x + i * (1.0h - x);
+            }   
+            float3 MixFunction(float3 i, float3 j, float x)
+            {
+	            return j * x + i * (1.0h - x);
+            }      
+            float MixFunction(float4 i, float4 j, float x)
+            {
+	            return j * x + i * (1.0h - x);
+            } 
+            float sqr(float x)
+            {
+	            return x*x; 
             }
 
             fixed SchlickFresnel(fixed i) 
@@ -74,23 +95,19 @@ Shader "Custom/Universal"
                 fixed x2 = x * x;
                 return x2 * x2 * x;
             }
-
-            fixed3 SchlickFresnelFunction(fixed3 SpecularColor, fixed LdotH) 
-            {
-                return SpecularColor + (1 - SpecularColor) * SchlickFresnel(LdotH);
-            }
-
             float SchlickIORFresnelFunction(float ior, float LdotH) 
             {
                 float f0 = pow(ior - 1, 2) / pow(ior + 1, 2);
                 return f0 + (1 - f0) * SchlickFresnel(LdotH);
             }
-
-            float3 FresnelLerp (float3 x, float3 y, float d)
+            float DiffuseFresnel (float NdotL, float NdotV, float LdotH, float roughness)
             {
-	            float t = SchlickFresnel(d);	
-	            return lerp (x, y, t);
+                float FresnelLight = SchlickFresnel(NdotL); 
+                float FresnelView = SchlickFresnel(NdotV);
+                float FresnelDiffuse90 = 0.5 + 2.0 * LdotH * LdotH * roughness;
+                return  MixFunction(1, FresnelDiffuse90, FresnelLight) * MixFunction(1, FresnelDiffuse90, FresnelView);
             }
+ 
 
             UnityGI GetUnityGI(float3 lightColor, float3 lightDirection, float3 normalDirection,float3 viewDirection, float3 viewReflectDirection, float attenuation, float roughness, float3 worldPos)
             {
@@ -118,6 +135,7 @@ Shader "Custom/Universal"
                 UnityGI gi = UnityGlobalIllumination(d, 1.0h, normalDirection, ugls_en_data );
                 return gi;
             }
+
 
             v2f vert (appdata v)
             {
@@ -149,49 +167,54 @@ Shader "Custom/Universal"
                 float attenuation = LIGHT_ATTENUATION(i);
                 float3 attenColor = attenuation * _LightColor0.rgb;
 
+                //间接光照
                 UnityGI gi = GetUnityGI(_LightColor0.rgb, wolrdLightDir, worldNormal, worldViewDir, worldViewReflectDir, attenuation, 1 - _Smoothness, i.worldPos.xyz);
                 float3 indirectDiffuse = gi.indirect.diffuse.rgb ;
 	            float3 indirectSpecular = gi.indirect.specular.rgb;
 
+                //环境光
+                fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.rgb;
+
+                //纹理
+                fixed4 texCol = tex2D(_MainTex, i.uv);
+
+                //高光
+	            fixed3 specColor = lerp(_SpecularCol, _DiffuseCol, _Metallic * 0.5);
 
                 //漫反射
-                fixed4 texCol = tex2D(_MainTex, i.uv);
-                fixed lambert = max(0,dot(worldNormal,wolrdLightDir)) * 0.5 + 0.5;
-                fixed3 diffColor = _DiffuseCol.rgb * texCol.rgb * lambert * attenColor + indirectDiffuse;
-                diffColor = diffColor * (1.0 - _Metallic);
-#ifdef _ENABLE_D_OFF 
- 	 diffColor = fixed3(0,0,0);
+                float3 diffColor = (_DiffuseCol.rgb + ambient) * texCol.rgb * (1.0 - _Metallic);
+#ifdef _ENABLE_D_OFF
+ 	diffColor = fixed3(0,0,0);
 #endif
-
                 //微表面法线分布
                 float smoothnessSqr = _Smoothness * _Smoothness;
                 float NdotHSqr = NdotH * NdotH;
-                float specPower = max(0.000001, (3.1415926535 * smoothnessSqr * NdotHSqr * NdotHSqr)) * exp((NdotHSqr - 1) / (smoothnessSqr * NdotHSqr));
-                fixed3 specColor = _SpecularCol * specPower;
-	            specColor = lerp(specColor, diffColor, _Metallic * 0.5);
+                float SpecularDistribution = max(0.000001, (3.1415926535 * smoothnessSqr * NdotHSqr * NdotHSqr)) * exp((NdotHSqr - 1) / (smoothnessSqr * NdotHSqr));
 #ifdef _ENABLE_NDF_OFF
  	specColor  = fixed3(0,0,0);
 #endif
-
                 //微表面遮挡
-                float Gs = pow(NdotL * NdotV, 0.5);
+                float c = 0.797884560802865;
+                float k = _Smoothness * _Smoothness * c;
+                float gH = NdotV * k + (1 - k);
+                float Gs = (gH * gH * NdotL);
 #ifdef _ENABLE_G_OFF
- 	 Gs = 0;
+ 	 Gs = 1;
 #endif
-
                 //菲涅尔
                 float Fresnel = SchlickIORFresnelFunction(_Ior, LdotH);
 #ifdef _ENABLE_F_OFF
- 	 Fresnel = 0;
+ 	 Fresnel = 1;
 #endif
 
+                diffColor = diffColor * max(0,NdotL * 0.5 + 0.5) * attenColor;
+	            diffColor *= DiffuseFresnel(NdotL, NdotV, LdotH, _Smoothness);
+                diffColor += indirectDiffuse;
 
-                specColor = (Gs * _LightColor0 + indirectSpecular) * specColor;
-                fixed3 col = diffColor + specColor;
+	            fixed3 specularity = ((specColor * SpecularDistribution) * (specColor * Fresnel) * (specColor * Gs)) / (4 * (NdotL * NdotV));
 
-                fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.rgb;
-                col += ambient;
-
+                fixed3 col = diffColor + specularity + indirectSpecular;
+   
                 UNITY_APPLY_FOG(i.fogCoord, col);
                 return fixed4(col,_DiffuseCol.a * texCol.a);
             }
