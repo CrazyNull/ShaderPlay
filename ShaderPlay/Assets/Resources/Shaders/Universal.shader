@@ -2,17 +2,12 @@ Shader "Custom/Universal"
 {
     Properties
     {
-        _MainTex ("Texture", 2D) = "white" {}
-        _DiffuseCol ("Diffuse Color", Color) = (1,1,1,1)
+        _AlbedoTex ("Albedo Texture", 2D) = "white" {}
+        _Albedo ("Albedo", Color) = (1,1,1,1)
         _NormalTex ("Normal", 2D) = "white" {}
-	    _SpecularCol ("Specular Color", Color) = (0,0,0,0)
         _Metallic ("Metallic",Range(0,1)) = 0.5
 	    _Smoothness ("Smoothness",Range(0,1)) = 0.5
-        _Ior("IOR",Range(1,4)) = 1.5
-	    [Toggle] _ENABLE_D ("Diffuse Enabled?", Float) = 1
-        [Toggle] _ENABLE_NDF ("Specular Enabled?", Float) = 1
-	    [Toggle] _ENABLE_G ("Geometric Shadow Enabled?", Float) = 1
-	    [Toggle] _ENABLE_F ("Fresnel Enabled?", Float) = 1
+        _Ior("Ior",Range(1,5)) = 1.5
     }
 
     SubShader
@@ -30,11 +25,6 @@ Shader "Custom/Universal"
             #include "UnityCG.cginc"
             #include "AutoLight.cginc"
             #include "Lighting.cginc"
-
-            #pragma multi_compile  _ENABLE_NDF_OFF _ENABLE_NDF_ON
-            #pragma multi_compile  _ENABLE_G_OFF _ENABLE_G_ON
-            #pragma multi_compile  _ENABLE_F_OFF _ENABLE_F_ON
-            #pragma multi_compile  _ENABLE_D_OFF _ENABLE_D_ON
 
             struct appdata
             {
@@ -55,59 +45,22 @@ Shader "Custom/Universal"
                 float3 worldBitangent : TEXCOORD5;
             };
 
-            sampler2D _MainTex;
-            float4 _MainTex_ST;
+            sampler2D _AlbedoTex;
+            float4 _AlbedoTex_ST;
 
             sampler2D _NormalTex;
             float4 _NormalTex_ST;
  
-            fixed4 _DiffuseCol;
-            fixed3 _SpecularCol;
+            fixed4 _Albedo;
+            fixed _BaseF0;
             fixed _Smoothness;
             fixed _Metallic;
             float _Ior;
-
-
+  
             float MixFunction(float i, float j, float x) 
             {
-	            return j * x + i * (1.0 - x);
-            } 
-            float2 MixFunction(float2 i, float2 j, float x)
-            {
-	            return j * x + i * (1.0h - x);
-            }   
-            float3 MixFunction(float3 i, float3 j, float x)
-            {
-	            return j * x + i * (1.0h - x);
-            }      
-            float MixFunction(float4 i, float4 j, float x)
-            {
-	            return j * x + i * (1.0h - x);
-            } 
-            float sqr(float x)
-            {
-	            return x*x; 
+                return j * x + i * (1.0 - x);
             }
-
-            fixed SchlickFresnel(fixed i) 
-            {
-                fixed x = clamp(1.0 - i, 0.0, 1.0);
-                fixed x2 = x * x;
-                return x2 * x2 * x;
-            }
-            float SchlickIORFresnelFunction(float ior, float LdotH) 
-            {
-                float f0 = pow(ior - 1, 2) / pow(ior + 1, 2);
-                return f0 + (1 - f0) * SchlickFresnel(LdotH);
-            }
-            float DiffuseFresnel (float NdotL, float NdotV, float LdotH, float roughness)
-            {
-                float FresnelLight = SchlickFresnel(NdotL); 
-                float FresnelView = SchlickFresnel(NdotV);
-                float FresnelDiffuse90 = 0.5 + 2.0 * LdotH * LdotH * roughness;
-                return  MixFunction(1, FresnelDiffuse90, FresnelLight) * MixFunction(1, FresnelDiffuse90, FresnelView);
-            }
- 
 
             UnityGI GetUnityGI(float3 lightColor, float3 lightDirection, float3 normalDirection,float3 viewDirection, float3 viewReflectDirection, float attenuation, float roughness, float3 worldPos)
             {
@@ -136,12 +89,37 @@ Shader "Custom/Universal"
                 return gi;
             }
 
+            fixed3 fresnelSchlick(float cosTheta, fixed3 F0)
+            {
+                return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+            }
+
+            float SchlickIORFresnelFunction(float ior, float LdotH) 
+            {
+                float f0 = pow(ior - 1, 2) / pow(ior + 1, 2);
+                float x = clamp(1.0 - LdotH, 0.0, 1.0);
+                float x2 = x * x;
+                x = x2 * x2 * x;
+                return f0 + (1 - f0) * x;
+            }
+
+            fixed DistributionGGX(fixed3 NdotH, fixed roughness) 
+            {
+                float roughnessSqr = roughness * roughness;
+                float NdotHSqr = NdotH * NdotH;
+                return roughnessSqr / (3.1415926535  * pow(NdotHSqr * (roughnessSqr - 1) + 1, 2));
+            }
+
+            fixed SchlickGGX(float cosTheta, fixed k) 
+            {
+                return cosTheta / (cosTheta * (1 - k) + k);
+            }
 
             v2f vert (appdata v)
             {
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
-                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                o.uv = TRANSFORM_TEX(v.uv, _AlbedoTex);
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 o.worldPos = mul(unity_ObjectToWorld,v.vertex);
                 o.worldTangent = normalize(mul(unity_ObjectToWorld, float4(v.tangent.xyz, 0.0)).xyz);
@@ -164,6 +142,10 @@ Shader "Custom/Universal"
                 fixed VdotH  = dot(worldViewDir,worldHalfDir);
                 fixed LdotH  = dot(wolrdLightDir,worldHalfDir);
 
+                _Smoothness = _Smoothness * _Smoothness;
+
+                float PI = 3.1415926535;
+
                 float attenuation = LIGHT_ATTENUATION(i);
                 float3 attenColor = attenuation * _LightColor0.rgb;
 
@@ -176,47 +158,39 @@ Shader "Custom/Universal"
                 fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.rgb;
 
                 //纹理
-                fixed4 texCol = tex2D(_MainTex, i.uv);
+                fixed4 albedoTex = tex2D(_AlbedoTex, i.uv);
 
-                //高光
-	            fixed3 specColor = lerp(_SpecularCol, _DiffuseCol, _Metallic * 0.5);
+                //反照率
+                fixed3 albedo = _Albedo.rgb * albedoTex.rgb;
 
-                //漫反射
-                float3 diffColor = (_DiffuseCol.rgb + ambient) * texCol.rgb * (1.0 - _Metallic);
-#ifdef _ENABLE_D_OFF
- 	diffColor = fixed3(0,0,0);
-#endif
-                //微表面法线分布
-                float smoothnessSqr = _Smoothness * _Smoothness;
-                float NdotHSqr = NdotH * NdotH;
-                float SpecularDistribution = max(0.000001, (3.1415926535 * smoothnessSqr * NdotHSqr * NdotHSqr)) * exp((NdotHSqr - 1) / (smoothnessSqr * NdotHSqr));
-#ifdef _ENABLE_NDF_OFF
- 	specColor  = fixed3(0,0,0);
-#endif
-                //微表面遮挡
-                float c = 0.797884560802865;
-                float k = _Smoothness * _Smoothness * c;
-                float gH = NdotV * k + (1 - k);
-                float Gs = (gH * gH * NdotL);
-#ifdef _ENABLE_G_OFF
- 	 Gs = 1;
-#endif
                 //菲涅尔
-                float Fresnel = SchlickIORFresnelFunction(_Ior, LdotH);
-#ifdef _ENABLE_F_OFF
- 	 Fresnel = 1;
-#endif
+                float F = SchlickIORFresnelFunction(_Ior, LdotH);
 
-                diffColor = diffColor * max(0,NdotL * 0.5 + 0.5) * attenColor;
-	            diffColor *= DiffuseFresnel(NdotL, NdotV, LdotH, _Smoothness);
-                diffColor += indirectDiffuse;
+                //微表面法线分布
+                float D = DistributionGGX(NdotH,_Smoothness);
 
-	            fixed3 specularity = ((specColor * SpecularDistribution) * (specColor * Fresnel) * (specColor * Gs)) / (4 * (NdotL * NdotV));
+                //微表面遮挡
+                fixed kDir = pow(_Smoothness + 1,2) / 8;
+                fixed ggx1 = SchlickGGX(max(0.0001,NdotL),kDir);
+                fixed ggx2 = SchlickGGX(max(0.0001,NdotV),kDir);
+                fixed G = ggx1 * ggx2;
 
-                fixed3 col = diffColor + specularity + indirectSpecular;
-   
+                fixed3 lighting = attenColor * max(0.0001,NdotL * 0.5 + 0.5);
+
+                fixed3 F0 = 0.04;
+                F0 = MixFunction(F0, albedo, _Metallic);
+                F0 = F0 + (1 - F0) * exp2((-5.55473 * VdotH - 6.98316) * VdotH);
+                fixed3 kd = (1 - F0) * (1 - _Metallic);
+                fixed3 diffuse = albedo / PI * kd;
+                diffuse = diffuse * attenColor * max(0.0001,NdotL * 0.5 + 0.5) + indirectDiffuse;
+
+                fixed3 brdf = F * D * G /  (4 * (NdotL * NdotV)) * attenColor * max(0.0001,NdotL);
+
+                fixed3 col = (diffuse + brdf) * PI + indirectSpecular;
+
                 UNITY_APPLY_FOG(i.fogCoord, col);
-                return fixed4(col,_DiffuseCol.a * texCol.a);
+
+                return fixed4(col,_Albedo.a * albedoTex.a);
             }
             ENDCG
         }
