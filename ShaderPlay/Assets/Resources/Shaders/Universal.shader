@@ -4,7 +4,10 @@ Shader "Custom/Universal"
     {
         _AlbedoTex ("Albedo Texture", 2D) = "white" {}
         _Albedo ("Albedo", Color) = (1,1,1,1)
+
         _NormalTex ("Normal", 2D) = "white" {}
+        _NormalScale ("Normal Scale",Range(0,1)) = 1.0
+        
         _Metallic ("Metallic",Range(0,1)) = 0.5
 	    _Smoothness ("Smoothness",Range(0,1)) = 0.5
         _Ior("Ior",Range(1,5)) = 1.5
@@ -62,7 +65,8 @@ Shader "Custom/Universal"
 
             sampler2D _NormalTex;
             float4 _NormalTex_ST;
- 
+            fixed _NormalScale;
+
             fixed4 _Albedo;
             fixed _BaseF0;
             fixed _Smoothness;
@@ -163,12 +167,9 @@ Shader "Custom/Universal"
                 //法线贴图
                 fixed4 normalColor = tex2D(_NormalTex,i.normalUV);
                 fixed3 worldTangentNormal = UnpackNormal(normalColor);
-                worldTangentNormal = normalize(worldTangentNormal);
-                //tangentNormal.z = sqrt(1-saturate(dot(tangentNormal.xy,tangentNormal.xy)));
 				worldTangentNormal = normalize(half3(dot(worldTangentNormal,i.T2W0.xyz),dot(worldTangentNormal,i.T2W1.xyz),dot(worldTangentNormal,i.T2W2.xyz)));
 
-
-                fixed3 worldNormal = normalize(i.worldNormal + worldTangentNormal);
+                fixed3 worldNormal = normalize(i.worldNormal + worldTangentNormal * _NormalScale);
 	            fixed3 worldLightDir = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.worldPos.xyz,_WorldSpaceLightPos0.w));
                 fixed3 worldViewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
                 fixed3 worldHalfDir = normalize(worldLightDir + worldViewDir);
