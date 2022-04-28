@@ -8,6 +8,9 @@ Shader "Custom/Universal"
         _Metallic ("Metallic",Range(0,1)) = 0.5
 	    _Smoothness ("Smoothness",Range(0,1)) = 0.5
         _Ior("Ior",Range(1,5)) = 1.5
+
+        _CapTex ("Cap Texture",2D) = "white" {}
+        _CapIntensity("Cap Intensity",Range(0,1)) = 0
     }
 
     SubShader
@@ -43,6 +46,7 @@ Shader "Custom/Universal"
                 float3 worldPos : TEXCOORD3;
                 float3 worldTangent : TEXCOORD4;
                 float3 worldBitangent : TEXCOORD5;
+                float2 cap : TEXCOORD6;
             };
 
             sampler2D _AlbedoTex;
@@ -56,6 +60,9 @@ Shader "Custom/Universal"
             fixed _Smoothness;
             fixed _Metallic;
             float _Ior;
+
+            sampler2D _CapTex;
+            float _CapIntensity;
   
             float MixFunction(float i, float j, float x) 
             {
@@ -124,6 +131,7 @@ Shader "Custom/Universal"
                 o.worldPos = mul(unity_ObjectToWorld,v.vertex);
                 o.worldTangent = normalize(mul(unity_ObjectToWorld, float4(v.tangent.xyz, 0.0)).xyz);
                 o.worldBitangent = normalize(cross(o.worldNormal, o.worldTangent) * v.tangent.w);
+                o.cap = mul(UNITY_MATRIX_MV,v.normal).xy * 0.5 + 0.5;
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
             }
@@ -146,6 +154,10 @@ Shader "Custom/Universal"
 
                 float PI = 3.1415926535;
 
+                //Matcap
+                fixed3 capCol = tex2D(_CapTex,i.cap) * _CapIntensity;
+
+                //直接光照
                 float attenuation = LIGHT_ATTENUATION(i);
                 float3 attenColor = attenuation * _LightColor0.rgb;
 
@@ -175,8 +187,6 @@ Shader "Custom/Universal"
                 fixed ggx2 = SchlickGGX(max(0.0001,NdotV),kDir);
                 fixed G = ggx1 * ggx2;
 
-                fixed3 lighting = attenColor * max(0.0001,NdotL * 0.5 + 0.5);
-
                 fixed3 F0 = 0.04;
                 F0 = MixFunction(F0, albedo, _Metallic);
                 F0 = F0 + (1 - F0) * exp2((-5.55473 * VdotH - 6.98316) * VdotH);
@@ -187,6 +197,8 @@ Shader "Custom/Universal"
                 fixed3 brdf = F * D * G /  (4 * (NdotL * NdotV)) * attenColor * max(0.0001,NdotL);
 
                 fixed3 col = (diffuse + brdf) * PI + indirectSpecular;
+
+                col += capCol;
 
                 UNITY_APPLY_FOG(i.fogCoord, col);
 
