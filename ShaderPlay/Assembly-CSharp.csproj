@@ -57,6 +57,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\DirLightMatrix.cs" />
+    <Compile Include="Assets\Scripts\Display.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Resources\Shaders\Hatching.shader" />

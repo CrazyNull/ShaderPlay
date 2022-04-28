@@ -9,6 +9,7 @@ Shader "Custom/Universal"
 	    _Smoothness ("Smoothness",Range(0,1)) = 0.5
         _Ior("Ior",Range(1,5)) = 1.5
 
+        _CapColor ("Cap Color",Color) = (1,1,1,1)
         _CapTex ("Cap Texture",2D) = "white" {}
         _CapIntensity("Cap Intensity",Range(0,1)) = 0
     }
@@ -61,6 +62,7 @@ Shader "Custom/Universal"
             fixed _Metallic;
             float _Ior;
 
+            fixed3 _CapColor;
             sampler2D _CapTex;
             float _CapIntensity;
   
@@ -155,7 +157,7 @@ Shader "Custom/Universal"
                 float PI = 3.1415926535;
 
                 //Matcap
-                fixed3 capCol = tex2D(_CapTex,i.cap) * _CapIntensity;
+                fixed3 capCol = tex2D(_CapTex,i.cap) * _CapIntensity * _CapColor;
 
                 //直接光照
                 float attenuation = LIGHT_ATTENUATION(i);
