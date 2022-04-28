@@ -13,6 +13,6 @@ public class Display : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        this.transform.Rotate(0, -90 * Time.deltaTime, 0, Space.World);
+        this.transform.Rotate(0, -25 * Time.deltaTime, 0, Space.World);
     }
 }

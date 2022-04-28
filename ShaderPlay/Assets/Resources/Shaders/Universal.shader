@@ -48,6 +48,13 @@ Shader "Custom/Universal"
                 float3 worldTangent : TEXCOORD4;
                 float3 worldBitangent : TEXCOORD5;
                 float2 cap : TEXCOORD6;
+
+                float4 T2W0 : TEXCOORD7;
+				float4 T2W1 : TEXCOORD8;
+				float4 T2W2 : TEXCOORD9;
+
+                float2 normalUV : TEXCOORD10;
+
             };
 
             sampler2D _AlbedoTex;
@@ -65,6 +72,7 @@ Shader "Custom/Universal"
             fixed3 _CapColor;
             sampler2D _CapTex;
             float _CapIntensity;
+
   
             float MixFunction(float i, float j, float x) 
             {
@@ -129,42 +137,59 @@ Shader "Custom/Universal"
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.uv = TRANSFORM_TEX(v.uv, _AlbedoTex);
+
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 o.worldPos = mul(unity_ObjectToWorld,v.vertex);
                 o.worldTangent = normalize(mul(unity_ObjectToWorld, float4(v.tangent.xyz, 0.0)).xyz);
                 o.worldBitangent = normalize(cross(o.worldNormal, o.worldTangent) * v.tangent.w);
                 o.cap = mul(UNITY_MATRIX_MV,v.normal).xy * 0.5 + 0.5;
+
+
+                o.normalUV = TRANSFORM_TEX(v.uv, _NormalTex);
+
+				float3 worldTangent = UnityObjectToWorldDir(v.tangent.xyz);
+				float3 worldBiNormal = cross(o.worldNormal,worldTangent) * v.tangent.w;
+				o.T2W0 = float4(worldTangent.x,worldBiNormal.x,o.worldNormal.x,o.worldPos.x);
+				o.T2W1 = float4(worldTangent.y,worldBiNormal.y,o.worldNormal.y,o.worldPos.y);
+				o.T2W2 = float4(worldTangent.z,worldBiNormal.z,o.worldNormal.z,o.worldPos.z);
+
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
             }
 
             fixed4 frag (v2f i) : SV_Target
             {
-                float3 worldNormal = normalize(i.worldNormal);
-	            float3 wolrdLightDir = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.worldPos.xyz,_WorldSpaceLightPos0.w));
-                float3 worldViewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
-                float3 worldHalfDir = normalize(wolrdLightDir + worldViewDir);
-                float3 worldViewReflectDir = normalize(reflect(-worldViewDir,worldNormal));
 
-                fixed NdotL  = dot(worldNormal,wolrdLightDir);
+                //法线贴图
+                fixed4 normalColor = tex2D(_NormalTex,i.normalUV);
+                fixed3 worldTangentNormal = UnpackNormal(normalColor);
+                worldTangentNormal = normalize(worldTangentNormal);
+                //tangentNormal.z = sqrt(1-saturate(dot(tangentNormal.xy,tangentNormal.xy)));
+				worldTangentNormal = normalize(half3(dot(worldTangentNormal,i.T2W0.xyz),dot(worldTangentNormal,i.T2W1.xyz),dot(worldTangentNormal,i.T2W2.xyz)));
+
+
+                fixed3 worldNormal = normalize(i.worldNormal + worldTangentNormal);
+	            fixed3 worldLightDir = normalize(lerp(_WorldSpaceLightPos0.xyz, _WorldSpaceLightPos0.xyz - i.worldPos.xyz,_WorldSpaceLightPos0.w));
+                fixed3 worldViewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
+                fixed3 worldHalfDir = normalize(worldLightDir + worldViewDir);
+                fixed3 worldViewReflectDir = normalize(reflect(-worldViewDir,worldNormal));
+
+                fixed NdotL  = dot(worldNormal,worldLightDir);
                 fixed NdotV  = dot(worldNormal,worldViewDir);
                 fixed NdotH  = dot(worldNormal,worldHalfDir);
                 fixed VdotH  = dot(worldViewDir,worldHalfDir);
-                fixed LdotH  = dot(wolrdLightDir,worldHalfDir);
+                fixed LdotH  = dot(worldLightDir,worldHalfDir);
 
                 _Smoothness = _Smoothness * _Smoothness;
 
                 float PI = 3.1415926535;
-
-                //Matcap
-                fixed3 capCol = tex2D(_CapTex,i.cap) * _CapIntensity * _CapColor;
 
                 //直接光照
                 float attenuation = LIGHT_ATTENUATION(i);
                 float3 attenColor = attenuation * _LightColor0.rgb;
 
                 //间接光照
-                UnityGI gi = GetUnityGI(_LightColor0.rgb, wolrdLightDir, worldNormal, worldViewDir, worldViewReflectDir, attenuation, 1 - _Smoothness, i.worldPos.xyz);
+                UnityGI gi = GetUnityGI(_LightColor0.rgb, worldLightDir, worldNormal, worldViewDir, worldViewReflectDir, attenuation, 1 - _Smoothness, i.worldPos.xyz);
                 float3 indirectDiffuse = gi.indirect.diffuse.rgb ;
 	            float3 indirectSpecular = gi.indirect.specular.rgb;
 
@@ -200,6 +225,8 @@ Shader "Custom/Universal"
 
                 fixed3 col = (diffuse + brdf) * PI + indirectSpecular;
 
+                //Matcap
+                fixed3 capCol = tex2D(_CapTex,i.cap) * (_CapIntensity * _CapIntensity) * _CapColor;
                 col += capCol;
 
                 UNITY_APPLY_FOG(i.fogCoord, col);
