@@ -2,6 +2,14 @@ Shader "Custom/Universal"
 {
     Properties
     {
+	    [Toggle] _ENABLE_GI ("GI Enabled?", Float) = 0
+	    [Enum(UnityEngine.Rendering.CullMode)] _CullMode ("Cull Mode",Float) = 2
+        // [Enum(UnityEngine.Rendering.BlendOp)]  _BlendOp  ("BlendOp", Float) = 0
+        // [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("SrcBlend", Float) = 1
+        // [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("DstBlend", Float) = 0
+        // [Enum(Off, 0, On, 1)]_ZWriteMode ("ZWrite", float) = 1
+        // [Enum(UnityEngine.Rendering.CompareFunction)]_ZTestMode ("ZTestMode", Float) = 4
+
         _AlbedoTex ("Albedo Texture", 2D) = "white" {}
         _Albedo ("Albedo", Color) = (1,1,1,1)
 
@@ -12,22 +20,35 @@ Shader "Custom/Universal"
 	    _Smoothness ("Smoothness",Range(0,1)) = 0.5
         _Ior("Ior",Range(1,5)) = 1.5
 
+	    [Toggle] _ENABLE_MATCAP ("Matcap Enabled?", Float) = 0
         _CapColor ("Cap Color",Color) = (1,1,1,1)
         _CapTex ("Cap Texture",2D) = "white" {}
         _CapIntensity("Cap Intensity",Range(0,1)) = 0
+
+        
     }
 
     SubShader
     {
         Tags { "RenderType"="Opaque" }
+
         LOD 100
 
         Pass
         {
+
+            // BlendOp [_BlendOp]
+            // Blend [_SrcBlend] [_DstBlend]
+            // ZWrite [_ZWriteMode]
+            // ZTest [_ZTestMode]
+            Cull [_CullMode]
+
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_fog
+            #pragma multi_compile _ENABLE_MATCAP_OFF _ENABLE_MATCAP_ON
+            #pragma multi_compile _ENABLE_GI_OFF _ENABLE_GI_ON
 
             #include "UnityCG.cginc"
             #include "AutoLight.cginc"
@@ -50,7 +71,10 @@ Shader "Custom/Universal"
                 float3 worldPos : TEXCOORD3;
                 float3 worldTangent : TEXCOORD4;
                 float3 worldBitangent : TEXCOORD5;
+
+                #ifdef _ENABLE_MATCAP_ON
                 float2 cap : TEXCOORD6;
+                #endif
 
                 float4 T2W0 : TEXCOORD7;
 				float4 T2W1 : TEXCOORD8;
@@ -73,9 +97,12 @@ Shader "Custom/Universal"
             fixed _Metallic;
             float _Ior;
 
+
+            #ifdef _ENABLE_MATCAP_ON
             fixed3 _CapColor;
             sampler2D _CapTex;
             float _CapIntensity;
+            #endif
 
   
             float MixFunction(float i, float j, float x) 
@@ -83,6 +110,7 @@ Shader "Custom/Universal"
                 return j * x + i * (1.0 - x);
             }
 
+            #ifdef _ENABLE_GI_ON
             UnityGI GetUnityGI(float3 lightColor, float3 lightDirection, float3 normalDirection,float3 viewDirection, float3 viewReflectDirection, float attenuation, float roughness, float3 worldPos)
             {
                 UnityLight light;
@@ -109,6 +137,7 @@ Shader "Custom/Universal"
                 UnityGI gi = UnityGlobalIllumination(d, 1.0h, normalDirection, ugls_en_data );
                 return gi;
             }
+            #endif
 
             fixed3 fresnelSchlick(float cosTheta, fixed3 F0)
             {
@@ -146,8 +175,10 @@ Shader "Custom/Universal"
                 o.worldPos = mul(unity_ObjectToWorld,v.vertex);
                 o.worldTangent = normalize(mul(unity_ObjectToWorld, float4(v.tangent.xyz, 0.0)).xyz);
                 o.worldBitangent = normalize(cross(o.worldNormal, o.worldTangent) * v.tangent.w);
-                o.cap = mul(UNITY_MATRIX_MV,v.normal).xy * 0.5 + 0.5;
 
+                #ifdef _ENABLE_MATCAP_ON
+                o.cap = mul(UNITY_MATRIX_MV,v.normal).xy * 0.5 + 0.5;
+                #endif
 
                 o.normalUV = TRANSFORM_TEX(v.uv, _NormalTex);
 
@@ -163,7 +194,6 @@ Shader "Custom/Universal"
 
             fixed4 frag (v2f i) : SV_Target
             {
-
                 //法线贴图
                 fixed4 normalColor = tex2D(_NormalTex,i.normalUV);
                 fixed3 worldTangentNormal = UnpackNormal(normalColor);
@@ -189,10 +219,14 @@ Shader "Custom/Universal"
                 float attenuation = LIGHT_ATTENUATION(i);
                 float3 attenColor = attenuation * _LightColor0.rgb;
 
+                fixed3 indirectDiffuse = 0;
+	            fixed3 indirectSpecular = 0;
+                #ifdef _ENABLE_GI_ON
                 //间接光照
                 UnityGI gi = GetUnityGI(_LightColor0.rgb, worldLightDir, worldNormal, worldViewDir, worldViewReflectDir, attenuation, 1 - _Smoothness, i.worldPos.xyz);
-                float3 indirectDiffuse = gi.indirect.diffuse.rgb ;
-	            float3 indirectSpecular = gi.indirect.specular.rgb;
+                indirectDiffuse = gi.indirect.diffuse.rgb ;
+	            indirectSpecular = gi.indirect.specular.rgb;
+                #endif
 
                 //环境光
                 fixed3 ambient = UNITY_LIGHTMODEL_AMBIENT.rgb;
@@ -220,15 +254,17 @@ Shader "Custom/Universal"
                 F0 = F0 + (1 - F0) * exp2((-5.55473 * VdotH - 6.98316) * VdotH);
                 fixed3 kd = (1 - F0) * (1 - _Metallic);
                 fixed3 diffuse = albedo / PI * kd;
-                diffuse = diffuse * attenColor * max(0.0001,NdotL * 0.5 + 0.5) + indirectDiffuse;
+                diffuse = diffuse * attenColor * max(0,NdotL * 0.5 + 0.5) + indirectDiffuse;
 
-                fixed3 brdf = F * D * G /  (4 * (NdotL * NdotV)) * attenColor * max(0.0001,NdotL);
+                fixed3 brdf = F * D * G /  (4 * (NdotL * NdotV)) * attenColor * max(0,NdotL);
 
                 fixed3 col = (diffuse + brdf) * PI + indirectSpecular;
 
+                #ifdef _ENABLE_MATCAP_ON
                 //Matcap
                 fixed3 capCol = tex2D(_CapTex,i.cap) * (_CapIntensity * _CapIntensity) * _CapColor;
                 col += capCol;
+                #endif
 
                 UNITY_APPLY_FOG(i.fogCoord, col);
 
