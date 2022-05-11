@@ -264,7 +264,7 @@ Shader "Custom/Universal"
                 //Matcap
                 fixed3 capCol = tex2D(_CapTex,i.cap) * (_CapIntensity * _CapIntensity) * _CapColor;
                 col += capCol;
-                #endif
+                #endif  
 
                 UNITY_APPLY_FOG(i.fogCoord, col);
 

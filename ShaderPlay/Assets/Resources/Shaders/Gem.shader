@@ -5,6 +5,8 @@ Shader "Custom/Gem"
         _Color ("Color",Color) = (1,1,1,1)
         _SpecularColor  ("Specular Color",Color) = (1,1,1,1)
         _Speculargloss ("Specular Gloss",Range(0,20)) = 0.5
+        _Reflect ("Reflect",Range(0,1)) = 0.5
+        _Transparent ("Transparent",Range(0,1)) = 0.5
         [NoScaleOffset] _CubeTex ("Cube Texture", Cube) = "" {}
         _Ior("Ior",Range(0,5)) = 1.5
 
@@ -34,6 +36,7 @@ Shader "Custom/Gem"
                 float3 worldNormal : TEXCOORD2;
                 #endif
                 float3 worldPos : TEXCOORD3;
+                float4 grabPos : TEXCOORD4;
             };
 
             fixed4 _Color;
@@ -41,6 +44,11 @@ Shader "Custom/Gem"
             float _Speculargloss;
             samplerCUBE _CubeTex;
             float _Ior;
+            fixed _Reflect;
+            fixed _Transparent;
+
+            sampler2D _BackgroundTexture;
+            float4 _BackgroundTexture_ST;
 
             float SchlickIORFresnelFunction(float ior, float LdotH) 
             {
@@ -59,7 +67,8 @@ Shader "Custom/Gem"
                 #ifdef _ENABLE_SHARPEDGE_OFF
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 #endif
-                o.worldPos =  mul(unity_ObjectToWorld,v.vertex);
+                o.worldPos = mul(unity_ObjectToWorld,v.vertex);
+                o.grabPos = ComputeGrabScreenPos(o.vertex);
                 return o;
             }
 
@@ -78,8 +87,7 @@ Shader "Custom/Gem"
                 fixed3 worldHalfDir = normalize(worldLightDir + worldViewDir);
                 fixed3 worldReflectDir = normalize(reflect(-worldViewDir,worldNormal));
 
-                fixed3 ref = texCUBE(_CubeTex,worldReflectDir) * _Color;
-
+                fixed3 ref = texCUBE(_CubeTex,worldReflectDir) * _Color * _Reflect;
                 fixed3 specular = pow(dot(worldViewDir,worldHalfDir), _Speculargloss) * _SpecularColor;
 
                 return fixed4(ref + specular, 1.0f);
@@ -98,12 +106,17 @@ Shader "Custom/Gem"
                 fixed3 worldViewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
 
                 fixed3 worldRefractDir = refract(-worldViewDir,worldNormal,_Ior);
-                fixed3 refract = texCUBE(_CubeTex,worldRefractDir) * _Color;
+                fixed3 refract = texCUBE(_CubeTex,worldRefractDir) * _Color * _Reflect;
                 
-                return fixed4(refract,1.0f);
+                i.grabPos.xyz += normalize(UnityWorldSpaceViewDir(worldRefractDir).xyz);
+                fixed4 grabcol = tex2Dproj(_BackgroundTexture,i.grabPos);
+
+                return fixed4(refract + grabcol * _Transparent,1.0f);
             }
 
         ENDCG
+
+        GrabPass{ "_BackgroundTexture" }
 
         Pass
         {
@@ -117,7 +130,7 @@ Shader "Custom/Gem"
         Pass
         {
             Cull Back
-            Blend One One
+            Blend One OneMinusDstColor
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag1

@@ -9,7 +9,8 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: mat_universal
   m_Shader: {fileID: 4800000, guid: c912884bec656cd439a40c36678775c4, type: 3}
-  m_ShaderKeywords: _ENABLE_D_ON _ENABLE_F_ON _ENABLE_GI_ON _ENABLE_G_ON _ENABLE_NDF_ON
+  m_ShaderKeywords: _ENABLE_D_ON _ENABLE_F_ON _ENABLE_GI_ON _ENABLE_G_ON _ENABLE_MATCAP_ON
+    _ENABLE_NDF_ON
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -28,7 +29,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _CapTex:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: c01fe2fedad9e254fa1ba83055f4eec8, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
@@ -73,7 +74,7 @@ Material:
     - _BaseF0: 0.388
     - _BlendOp: 0
     - _BumpScale: 1
-    - _CapIntensity: 0.71
+    - _CapIntensity: 0.375
     - _CapScale: 0.814
     - _CullMode: 2
     - _Cutoff: 0.5
@@ -83,20 +84,20 @@ Material:
     - _ENABLE_F: 1
     - _ENABLE_G: 1
     - _ENABLE_GI: 1
-    - _ENABLE_MATCAP: 0
+    - _ENABLE_MATCAP: 1
     - _ENABLE_NDF: 1
     - _GIContribution: 1
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _Ior: 3.75
-    - _Metallic: 0.459
+    - _Ior: 3.52
+    - _Metallic: 0.525
     - _Metallics: 0.5
     - _Mode: 0
     - _NormalScale: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
-    - _Smoothness: 0.533
+    - _Smoothness: 0.804
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SpecularPower: 1
@@ -108,8 +109,8 @@ Material:
     - _ZWrite: 1
     - _ZWriteMode: 0
     m_Colors:
-    - _Albedo: {r: 0.34709862, g: 0.6251218, b: 0.9811321, a: 1}
-    - _CapColor: {r: 0, g: 0, b: 0, a: 1}
+    - _Albedo: {r: 0, g: 1, b: 0.028357267, a: 1}
+    - _CapColor: {r: 0.048191853, g: 1, b: 0.023584902, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _DiffuseCol: {r: 0.7830189, g: 0.7830189, b: 0.7830189, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
